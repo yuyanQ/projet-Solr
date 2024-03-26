@@ -1,0 +1,228 @@
+#**
+ *  Render a complex document in the results list
+ *#
+
+## Load Mime-Type List and Mapping
+#parse('mime_type_lists.vm')
+## Sets:
+## * supportedMimeTypes, AKA supportedtypes
+## * mimeExtensionsMap, AKA extMap
+
+
+## URL
+#if($doc.getFieldValue('url'))
+  #set($url = $doc.getFieldValue('url'))
+#elseif($doc.getFieldValue('resourcename'))
+  #set($url = "file:///$doc.getFieldValue('resourcename')")
+#else
+  #set($url = "$doc.getFieldValue('id')")
+#end
+
+## Title
+#if($doc.getFieldValue('id'))
+  #set($title = $esc.html($doc.getFirstValue('id')))
+#else
+  #set($title = "["+$doc.getFieldValue('id')+"]")
+#end
+
+
+
+
+## Sort out Mime-Type
+#set($ct = $doc.getFirstValue('content_type').split(";").get(0))
+#set($filename = $doc.getFieldValue('resourcename'))
+#set($filetype = false)
+#set($filetype = $mimeExtensionsMap.get($ct))
+
+## TODO: falling back to file extension is convenient,
+## except when you don't have an icon for that extension
+## example "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+## document with a .docx extension.
+## It'd be nice to fall back to an "unknown" or the existing "file" type
+## We sort of do this below, but only if the filename has no extension
+## (anything after the last dot).
+
+#if(!$filetype)
+  #set($filetype = $filename.substring($filename.lastIndexOf(".")).substring(1))
+#end
+
+## #if(!$filetype)
+##   #set($filetype = "file")
+## #end
+## #if(!$supportedMimeTypes.contains($filetype))
+##   #set($filetype = "file")
+## #end
+
+## Row 1: Icon and Title and mlt link
+<div class="result-title">
+  ## Icon
+  ## Small file type icons from http://www.splitbrain.org/projects/file_icons (public domain)
+  #### <img src="#{url_root}/img/filetypes/${filetype}.png" align="center">
+
+  ## Title, hyperlinked
+  #### <a href="${url}" target="_blank">
+     <b>ID -  $title </b></a>
+
+  ## Link for MLT / More Like This / Find Similar
+  <span class="mlt">
+    #if($params.getBool('mlt', false) == false)
+      <a href="#lensNoQ&q=id:%22$docId%22&mlt=true" style="font-size: larger;">      Plus d'informations</a>
+    #end
+  </span>
+
+</div>
+
+## Row 2?: ID / URL
+
+## movie_name
+#if($doc.getFieldValue('movie_name'))
+  <div>
+    <span style="font-style: italic;">Titre du film :</span> <span style="font-size: larger;">#field('movie_name')</span>
+  </div>
+#end
+
+## year
+#if($doc.getFieldValue('year'))
+  <div>
+    <span style="font-style: italic;">Année :</span> <span style="font-size: larger;">#field('year')</span>
+  </div>
+#end
+
+## star
+#if($doc.getFieldValue('star'))
+  <div>
+    <span style="font-style: italic;">Casting principal :</span> <span style="font-size: larger;">#field('star')</span>
+  </div>
+#end
+
+ ## Réalisation
+#if($doc.getFieldValue('director'))
+  <div>
+    <span style="font-style: italic;">Réalisation :</span> <span style="font-size: larger;">#field('director')</span>
+  </div>
+#end
+
+## certificate
+#if($doc.getFieldValue('certificate'))
+  <div>
+    <span style="font-style: italic;">Certificat :</span> <span style="font-size: larger;">#field('certificate')</span>
+  </div>
+#end
+
+## duree
+#if($doc.getFieldValue('runtime_min'))
+  <div>
+    <span style="font-style: italic;">Temps :</span> <span style="font-size: larger;">#field('runtime_min') min</span>
+  </div>
+#end
+
+## rating
+#if($doc.getFieldValue('rating'))
+  <div>
+    <span style="font-style: italic;">Notes :</span> <span style="font-size: larger;">#field('rating')/10</span>
+  </div>
+#end
+
+
+## votes
+#if($doc.getFieldValue('votes'))
+  <div>
+    <span style="font-style: italic;">Votes :</span> <span style="font-size: larger;">#field('votes') fois</span> 
+  </div>
+#end
+
+## genre
+#if($doc.getFieldValue('genre'))
+  <div>
+    <span style="font-style: italic;">Genre :</span> <span style="font-size: larger;">#field('genre')</span>
+  </div>
+#end
+
+## dollars
+#if($doc.getFieldValue('gross_in_dollar'))
+  <div>
+    <span style="font-style: italic;">Revenus bruts en dollar :</span> <span style="font-size: larger;">#field('gross_in_dollar') $</span> 
+  </div>
+#end
+
+
+## description
+#set($highlighting = $response.getHighlighting().get($doc.get('id')))
+#if($doc.getFieldValue('description'))
+    <div>
+      <span style="font-style: italic;">Scénario :</span> 
+      <span style="font-size: larger;">$highlighting.get('description').get(0)</span>
+    </div>
+ #end
+
+
+
+## Last_Modified Date
+#if($doc.getFieldValue('last_modified'))
+  <div>
+    Dernière modification:
+    #field('last_modified')
+  </div>
+#end
+
+## Main content of doc
+<div class="result-body">
+  #field('certificate')
+</div>
+
+## Display Similar Documents / MLT = More Like This
+<div class="mlt">
+  #set($mlt = $mltResults.get($docId))
+  #set($mltOn = $params.getBool('mlt'))
+  #if($mltOn == true)
+    <div class="field-name">
+      Films similaires
+    </div>
+  #end
+  ## If has MLT enabled An Entries to show
+  #if ($mltOn && $mlt && $mlt.size() > 0)
+    <ul>
+      #foreach($mltHit in $mlt)
+        #set($mltId = $mltHit.getFieldValue('id'))
+        <li>
+          <div>
+            <a href="#url_for_home?q=id:$mltId">
+              $mltId</a>
+          </div>
+          <div>
+            <span class="field-name">
+              Titre du film:
+            </span>
+            $mltHit.getFieldValue('movie_name')
+          </div>
+          #if($mltHit.getFieldValue('director'))
+            <div>
+              <span class="field-name">
+                Réalisation:
+              </span>
+              $mltHit.getFieldValue('director')
+            </div>
+            #else
+              <div>
+              <span class="field-name">
+                Réalisation: Vide
+              </span>
+            </div>
+            #end
+
+          <div>
+            <span class="field-name">
+              Scénario:
+            </span>
+            $mltHit.getFieldValue('description')
+          </div>
+        </li>
+      #end    ## end for each mltHit in $mlt
+    </ul>
+  ## Else MLT Enabled but no mlt results for this query
+  #elseif($mltOn && $mlt.size() == 0)
+    <div>Aucun film similaire trouvé</div>
+  #end
+</div>  ## div class=mlt
+
+#parse('debug.vm')
